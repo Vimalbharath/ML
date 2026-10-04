@@ -1,0 +1,71 @@
+using device: cuda
+total desired batch size: 524288
+=> adjusted micro-batch size B = 4
+=> calculated gradient accumulation steps: 128
+found 4 shards for split train
+found 1 shards for split val
+No checkpoint found. Starting training from scratch.
+using fused AdamW: True
+step     0 | val loss: 10.9553
+step     0 | loss: 10.955013 | lr 1.7143e-05 | norm: 15.3439 | dt: 220650.28ms | tok/sec: 2376.10
+step     1 | loss: 10.347737 | lr 3.4286e-05 | norm: 8.1388 | dt: 210723.90ms | tok/sec: 2488.03
+step     2 | loss: 9.928758 | lr 5.1429e-05 | norm: 4.4827 | dt: 209537.22ms | tok/sec: 2502.12
+step     3 | loss: 9.714423 | lr 6.8571e-05 | norm: 3.0665 | dt: 209522.98ms | tok/sec: 2502.29
+step     4 | loss: 9.622241 | lr 8.5714e-05 | norm: 2.6388 | dt: 209727.50ms | tok/sec: 2499.85
+step     5 | loss: 9.546384 | lr 1.0286e-04 | norm: 2.3703 | dt: 209683.71ms | tok/sec: 2500.38
+step     6 | loss: 9.468879 | lr 1.2000e-04 | norm: 2.2129 | dt: 209344.12ms | tok/sec: 2504.43
+step     7 | loss: 9.379251 | lr 1.3714e-04 | norm: 2.1185 | dt: 208472.41ms | tok/sec: 2514.90
+step     8 | loss: 9.243458 | lr 1.5429e-04 | norm: 2.0376 | dt: 208123.35ms | tok/sec: 2519.12
+step     9 | loss: 9.120800 | lr 1.7143e-04 | norm: 1.8918 | dt: 208701.62ms | tok/sec: 2512.14
+step    10 | loss: 8.989377 | lr 1.8857e-04 | norm: 2.1376 | dt: 209340.23ms | tok/sec: 2504.48
+step    11 | loss: 8.873819 | lr 2.0571e-04 | norm: 2.0822 | dt: 209491.01ms | tok/sec: 2502.68
+step    12 | loss: 8.726080 | lr 2.2286e-04 | norm: 1.7480 | dt: 209546.14ms | tok/sec: 2502.02
+step    13 | loss: 8.595536 | lr 2.4000e-04 | norm: 1.7878 | dt: 209494.31ms | tok/sec: 2502.64
+step    14 | loss: 8.390779 | lr 2.5714e-04 | norm: 1.8003 | dt: 209024.83ms | tok/sec: 2508.26
+step    15 | loss: 8.256923 | lr 2.7429e-04 | norm: 1.3874 | dt: 209440.89ms | tok/sec: 2503.27
+step    16 | loss: 8.153030 | lr 2.9143e-04 | norm: 1.4567 | dt: 209040.09ms | tok/sec: 2508.07
+step    17 | loss: 7.991634 | lr 3.0857e-04 | norm: 1.1447 | dt: 208841.99ms | tok/sec: 2510.45
+step    18 | loss: 8.037095 | lr 3.2571e-04 | norm: 0.8122 | dt: 208976.11ms | tok/sec: 2508.84
+step    19 | loss: 8.014032 | lr 3.4286e-04 | norm: 0.9461 | dt: 209125.91ms | tok/sec: 2507.04
+step    20 | loss: 7.730962 | lr 3.6000e-04 | norm: 1.9822 | dt: 209526.23ms | tok/sec: 2502.25
+step    21 | loss: 7.641868 | lr 3.7714e-04 | norm: 0.9568 | dt: 209521.05ms | tok/sec: 2502.32
+step    22 | loss: 7.569320 | lr 3.9429e-04 | norm: 1.1763 | dt: 209912.59ms | tok/sec: 2497.65
+step    23 | loss: 7.577871 | lr 4.1143e-04 | norm: 1.3074 | dt: 209839.18ms | tok/sec: 2498.52
+step    24 | loss: 7.421323 | lr 4.2857e-04 | norm: 0.7717 | dt: 210065.85ms | tok/sec: 2495.83
+step    25 | loss: 7.360705 | lr 4.4571e-04 | norm: 1.2105 | dt: 210391.00ms | tok/sec: 2491.97
+step    26 | loss: 7.412903 | lr 4.6286e-04 | norm: 1.2472 | dt: 210320.80ms | tok/sec: 2492.80
+step    27 | loss: 7.317701 | lr 4.8000e-04 | norm: 0.7241 | dt: 210161.35ms | tok/sec: 2494.69
+step    28 | loss: 7.338861 | lr 4.9714e-04 | norm: 1.5570 | dt: 210420.94ms | tok/sec: 2491.62
+step    29 | loss: 7.257842 | lr 5.1429e-04 | norm: 1.0432 | dt: 210211.73ms | tok/sec: 2494.09
+step    30 | loss: 7.366480 | lr 5.3143e-04 | norm: 0.8045 | dt: 210195.01ms | tok/sec: 2494.29
+step    31 | loss: 7.316176 | lr 5.4857e-04 | norm: 1.6097 | dt: 209918.94ms | tok/sec: 2497.57
+step    32 | loss: 7.309050 | lr 5.6571e-04 | norm: 2.6191 | dt: 209922.08ms | tok/sec: 2497.54
+step    33 | loss: 7.327931 | lr 5.8286e-04 | norm: 2.5661 | dt: 209725.19ms | tok/sec: 2499.88
+step    34 | loss: 7.183675 | lr 6.0000e-04 | norm: 1.3843 | dt: 209725.58ms | tok/sec: 2499.88
+step    35 | loss: 7.147269 | lr 6.0000e-04 | norm: 0.9182 | dt: 209996.42ms | tok/sec: 2496.65
+step    36 | loss: 7.200528 | lr 5.9410e-04 | norm: 2.0210 | dt: 209806.42ms | tok/sec: 2498.91
+step    37 | loss: 7.093045 | lr 5.7666e-04 | norm: 1.2670 | dt: 210123.65ms | tok/sec: 2495.14
+step    38 | loss: 7.057892 | lr 5.4843e-04 | norm: 0.7193 | dt: 210208.97ms | tok/sec: 2494.13
+step    39 | loss: 7.108576 | lr 5.1067e-04 | norm: 0.8188 | dt: 209994.00ms | tok/sec: 2496.68
+step    40 | loss: 7.068252 | lr 4.6500e-04 | norm: 0.6778 | dt: 210268.11ms | tok/sec: 2493.43
+step    41 | loss: 7.006882 | lr 4.1343e-04 | norm: 0.5577 | dt: 210536.27ms | tok/sec: 2490.25
+step    42 | loss: 6.952827 | lr 3.5822e-04 | norm: 0.6060 | dt: 210268.33ms | tok/sec: 2493.42
+step    43 | loss: 7.010487 | lr 3.0178e-04 | norm: 0.6697 | dt: 210586.94ms | tok/sec: 2489.65
+step    44 | loss: 6.961914 | lr 2.4657e-04 | norm: 0.5981 | dt: 210588.82ms | tok/sec: 2489.63
+step    45 | loss: 6.981488 | lr 1.9500e-04 | norm: 0.4226 | dt: 210774.10ms | tok/sec: 2487.44
+step    46 | loss: 6.978833 | lr 1.4933e-04 | norm: 0.4598 | dt: 210622.57ms | tok/sec: 2489.23
+step    47 | loss: 7.051138 | lr 1.1157e-04 | norm: 0.5008 | dt: 210226.33ms | tok/sec: 2493.92
+step    48 | loss: 7.079146 | lr 8.3343e-05 | norm: 0.4064 | dt: 210187.00ms | tok/sec: 2494.39
+step    49 | val loss: 6.9966
+rank 0 sample 0: Hello, I'm a language model, and the number, the number to one have some that on the main will have the need more of this have the best
+rank 0 sample 1: Hello, I'm a language model, while our great is the person to many to be how they can you an not a most for a own in the year
+rank 0 sample 2: Hello, I'm a language model, the work)
+An that some of the new and the United.
+-”
+-|
+The<|endoftext|>
+rank 0 sample 3: Hello, I'm a language model, or these can be the way to other not at the way in the way of no, is a need. This have
+step    49 | loss: 7.010996 | lr 6.5900e-05 | norm: 0.3286 | dt: 235277.62ms | tok/sec: 2228.38
+
+
+2hrs
