@@ -6,7 +6,6 @@ from dataclasses import dataclass
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from hellaswag import render_example, iterate_examples
 import tiktoken
 import numpy as np
 
@@ -179,20 +178,6 @@ class DataLoaderLite:
             self.current_position = B * T * self.process_rank
         return x, y
 
-def get_most_likely_row(tokens, mask, logits):
-    shift_logits = (logits[..., :-1, :]).contiguous()
-    shift_tokens = (tokens[..., 1:]).contiguous()
-    flat_shift_logits = shift_logits.view(-1, shift_logits.size(-1))
-    flat_shift_tokens = shift_tokens.view(-1)
-    shift_losses = F.cross_entropy(flat_shift_logits, flat_shift_tokens, reduction='none')
-    shift_losses = shift_losses.view(tokens.size(0), -1)
-    shift_mask = (mask[..., 1:]).contiguous()
-    masked_shift_losses = shift_losses * shift_mask
-    sum_loss = masked_shift_losses.sum(dim=1)
-    avg_loss = sum_loss / shift_mask.sum(dim=1)
-    pred_norm = avg_loss.argmin().item()
-    return pred_norm
-
 # -----------------------------------------------------------------------------
 
 from torch.distributed import init_process_group, destroy_process_group
@@ -229,9 +214,9 @@ if torch.cuda.is_available():
 
 enc = tiktoken.get_encoding("gpt2")
 
-# --- MODIFIED BATCH SIZE & STEPS FOR COLAB & 5 SHARDS ---
+# --- BATCH SIZE & GRADIENT ACCUMULATION CONFIGURATION ---
 total_batch_size = 524288  # 0.5M tokens
-B = 16                     # Reduced micro-batch size to avoid Colab GPU OOM (use B=8 if OOM persists)
+B = 16                     # Micro-batch size for Google Colab GPU limits
 T = 1024                   # Sequence length
 
 assert total_batch_size % (B * T * ddp_world_size) == 0, "total_batch_size must be divisible by B * T * ddp_world_size"
@@ -255,7 +240,7 @@ if ddp:
     model = DDP(model, device_ids=[ddp_local_rank])
 raw_model = model.module if ddp else model
 
-# --- MODIFIED LEARNING RATE SCHEDULE FOR 5 SHARDS (~500M TOKENS) ---
+# --- LEARNING RATE SCHEDULE FOR 5 SHARDS (~500M TOKENS) ---
 max_lr = 6e-4
 min_lr = max_lr * 0.1
 max_steps = 953        # 5 shards * 100M tokens/shard / 524,288 tokens/step ≈ 953 steps
@@ -283,13 +268,13 @@ for step in range(max_steps):
     t0 = time.time()
     last_step = (step == max_steps - 1)
 
-    # Evaluate validation loss every 50 steps (adjusted for shorter 953-step run)
+    # Evaluate validation loss on the 0th val shard every 50 steps
     if step % 50 == 0 or last_step:
         model.eval()
         val_loader.reset()
         with torch.no_grad():
             val_loss_accum = 0.0
-            val_loss_steps = 20
+            val_loss_steps = 50  # Average loss over 50 batches from edufineweb_val_000000.npy
             for _ in range(val_loss_steps):
                 x, y = val_loader.next_batch()
                 x, y = x.to(device), y.to(device)
@@ -300,7 +285,7 @@ for step in range(max_steps):
         if ddp:
             dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
         if master_process:
-            print(f"validation loss: {val_loss_accum.item():.4f}")
+            print(f"step {step:5d} | val loss: {val_loss_accum.item():.4f}")
             with open(log_file, "a") as f:
                 f.write(f"{step} val {val_loss_accum.item():.4f}\n")
             if step > 0 and (step % 250 == 0 or last_step):
@@ -313,36 +298,7 @@ for step in range(max_steps):
                 }
                 torch.save(checkpoint, checkpoint_path)
 
-    # Evaluate HellaSwag every 100 steps
-    if (step % 100 == 0 or last_step) and (not use_compile):
-        num_correct_norm = 0
-        num_total = 0
-        for i, example in enumerate(iterate_examples("val")):
-            if i % ddp_world_size != ddp_rank:
-                continue
-            _, tokens, mask, label = render_example(example)
-            tokens = tokens.to(device)
-            mask = mask.to(device)
-            with torch.no_grad():
-                with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
-                    logits, loss = model(tokens)
-                pred_norm = get_most_likely_row(tokens, mask, logits)
-            num_total += 1
-            num_correct_norm += int(pred_norm == label)
-        if ddp:
-            num_total = torch.tensor(num_total, dtype=torch.long, device=device)
-            num_correct_norm = torch.tensor(num_correct_norm, dtype=torch.long, device=device)
-            dist.all_reduce(num_total, op=dist.ReduceOp.SUM)
-            dist.all_reduce(num_correct_norm, op=dist.ReduceOp.SUM)
-            num_total = num_total.item()
-            num_correct_norm = num_correct_norm.item()
-        acc_norm = num_correct_norm / num_total
-        if master_process:
-            print(f"HellaSwag accuracy: {num_correct_norm}/{num_total}={acc_norm:.4f}")
-            with open(log_file, "a") as f:
-                f.write(f"{step} hella {acc_norm:.4f}\n")
-
-    # Generate text every 100 steps
+    # Sample generated text every 100 steps
     if ((step > 0 and step % 100 == 0) or last_step) and (not use_compile):
         model.eval()
         num_return_sequences = 4
