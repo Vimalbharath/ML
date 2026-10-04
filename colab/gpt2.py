@@ -1,4 +1,8 @@
 import os
+
+# Set environment variable before importing torch to prevent memory fragmentation
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
 import math
 import time
 import inspect
@@ -122,11 +126,6 @@ class GPT(nn.Module):
             {'params': decay_params, 'weight_decay': weight_decay},
             {'params': nodecay_params, 'weight_decay': 0.0}
         ]
-        num_decay_params = sum(p.numel() for p in decay_params)
-        num_nodecay_params = sum(p.numel() for p in nodecay_params)
-        if master_process:
-            print(f"num decayed parameter tensors: {len(decay_params)}, with {num_decay_params:,} parameters")
-            print(f"num non-decayed parameter tensors: {len(nodecay_params)}, with {num_nodecay_params:,} parameters")
         fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
         use_fused = fused_available and device_type == "cuda"
         if master_process:
@@ -199,11 +198,7 @@ else:
     ddp_local_rank = 0
     ddp_world_size = 1
     master_process = True
-    device = "cpu"
-    if torch.cuda.is_available():
-        device = "cuda"
-    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        device = "mps"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"using device: {device}")
 
 device_type = "cuda" if device.startswith("cuda") else "cpu"
@@ -214,9 +209,9 @@ if torch.cuda.is_available():
 
 enc = tiktoken.get_encoding("gpt2")
 
-# --- BATCH SIZE & GRADIENT ACCUMULATION CONFIGURATION ---
-total_batch_size = 524288  # 0.5M tokens
-B = 16                     # Micro-batch size for Google Colab GPU limits
+# --- REDUCED MICRO-BATCH SIZE TO PREVENT OOM ---
+total_batch_size = 524288  # 0.5M tokens target
+B = 8                      # Reduced from 16 to 8 to fix CUDA OOM
 T = 1024                   # Sequence length
 
 assert total_batch_size % (B * T * ddp_world_size) == 0, "total_batch_size must be divisible by B * T * ddp_world_size"
@@ -224,6 +219,7 @@ grad_accum_steps = total_batch_size // (B * T * ddp_world_size)
 
 if master_process:
     print(f"total desired batch size: {total_batch_size}")
+    print(f"=> adjusted micro-batch size B = {B}")
     print(f"=> calculated gradient accumulation steps: {grad_accum_steps}")
 
 train_loader = DataLoaderLite(B=B, T=T, process_rank=ddp_rank, num_processes=ddp_world_size, split="train")
@@ -240,11 +236,35 @@ if ddp:
     model = DDP(model, device_ids=[ddp_local_rank])
 raw_model = model.module if ddp else model
 
+# --- RESUME LOGIC FROM LATEST CHECKPOINT ---
+log_dir = "log"
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, "log.txt")
+
+start_step = 0
+checkpoint_files = [f for f in os.listdir(log_dir) if f.startswith("model_") and f.endswith(".pt")]
+
+if checkpoint_files:
+    latest_checkpoint = sorted(checkpoint_files)[-1]
+    checkpoint_path = os.path.join(log_dir, latest_checkpoint)
+    if master_process:
+        print(f"Loading checkpoint from {checkpoint_path}...")
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    raw_model.load_state_dict(checkpoint['model'])
+    start_step = checkpoint['step'] + 1
+    if master_process:
+        print(f"Resuming training from step {start_step}")
+else:
+    if master_process:
+        print("No checkpoint found. Starting training from scratch.")
+        with open(log_file, "w") as f:
+            pass
+
 # --- LEARNING RATE SCHEDULE FOR 5 SHARDS (~500M TOKENS) ---
 max_lr = 6e-4
 min_lr = max_lr * 0.1
 max_steps = 953        # 5 shards * 100M tokens/shard / 524,288 tokens/step ≈ 953 steps
-warmup_steps = 35      # ~3.5% of max_steps for linear warmup
+warmup_steps = 35      # ~3.5% of max_steps
 
 def get_lr(it):
     if it < warmup_steps:
@@ -258,13 +278,8 @@ def get_lr(it):
 
 optimizer = raw_model.configure_optimizers(weight_decay=0.1, learning_rate=6e-4, device_type=device_type)
 
-log_dir = "log"
-os.makedirs(log_dir, exist_ok=True)
-log_file = os.path.join(log_dir, f"log.txt")
-with open(log_file, "w") as f:
-    pass
-
-for step in range(max_steps):
+# --- TRAINING LOOP ---
+for step in range(start_step, max_steps):
     t0 = time.time()
     last_step = (step == max_steps - 1)
 
@@ -274,7 +289,7 @@ for step in range(max_steps):
         val_loader.reset()
         with torch.no_grad():
             val_loss_accum = 0.0
-            val_loss_steps = 50  # Average loss over 50 batches from edufineweb_val_000000.npy
+            val_loss_steps = 20
             for _ in range(val_loss_steps):
                 x, y = val_loader.next_batch()
                 x, y = x.to(device), y.to(device)
