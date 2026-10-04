@@ -211,7 +211,7 @@ enc = tiktoken.get_encoding("gpt2")
 
 # --- REDUCED MICRO-BATCH SIZE TO PREVENT OOM ---
 total_batch_size = 524288  # 0.5M tokens target
-B = 8                      # Reduced from 16 to 8 to fix CUDA OOM
+B = 4                      # Reduced from 16 to 8 to fix CUDA OOM
 T = 1024                   # Sequence length
 
 assert total_batch_size % (B * T * ddp_world_size) == 0, "total_batch_size must be divisible by B * T * ddp_world_size"
@@ -263,7 +263,7 @@ else:
 # --- LEARNING RATE SCHEDULE FOR 5 SHARDS (~500M TOKENS) ---
 max_lr = 6e-4
 min_lr = max_lr * 0.1
-max_steps = 953        # 5 shards * 100M tokens/shard / 524,288 tokens/step ≈ 953 steps
+max_steps = 50        # 5 shards * 100M tokens/shard / 524,288 tokens/step ≈ 953 steps
 warmup_steps = 35      # ~3.5% of max_steps
 
 def get_lr(it):
